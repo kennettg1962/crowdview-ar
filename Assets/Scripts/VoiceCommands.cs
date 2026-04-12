@@ -158,6 +158,22 @@
               return;                                                                                                                                              
           }                                                                                                                                                        
                   
+          // "pause"
+          if (text.Contains("pause"))
+          {
+              faceScanner.PauseScan();
+              Speak("Paused.");
+              return;
+          }
+
+          // "resume" / "unpause"
+          if (text.Contains("resume") || text.Contains("unpause"))
+          {
+              faceScanner.ResumeScan();
+              Speak("Resuming.");
+              return;
+          }
+
           // "stop"
           if (text.Contains("stop"))
           {

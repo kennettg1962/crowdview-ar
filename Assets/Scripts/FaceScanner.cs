@@ -39,14 +39,15 @@
 
       readonly List<GameObject> _boxes = new();
       bool _scanning;
+      bool _paused;
       float _nextScan;
 
-      FaceData[] _lastFaces;                                                                                                                                       
+      FaceData[] _lastFaces;
       Texture2D  _lastTexture;
 
       void Update()
       {
-          if (!_scanning && Time.time >= _nextScan)
+          if (!_paused && !_scanning && Time.time >= _nextScan)
               StartCoroutine(ScanFrame());
       }
 
@@ -187,15 +188,38 @@
       }
  // ── Called by VoiceCommands ───────────────────────────────────────────────                                                                                    
                                                                                                                                                                    
-      public void StopScan()                                                                                                                                       
-      {                                                                                                                                                            
+      public void StopScan()
+      {
           _scanning = false;
+          _paused   = false;
           _nextScan = float.MaxValue;
-          foreach (var b in _boxes) Destroy(b);                                                                                                                    
+          foreach (var b in _boxes) Destroy(b);
           _boxes.Clear();
-          Debug.Log("FaceScanner: stopped");                                                                                                                       
-      }                                                                                                                                                            
-   
+          Debug.Log("FaceScanner: stopped");
+      }
+
+      public void PauseScan()
+      {
+          if (_paused) return;
+          _paused   = true;
+          _nextScan = float.MaxValue;
+          // Hide overlay but keep _lastFaces so resume can redraw immediately.
+          foreach (var b in _boxes) Destroy(b);
+          _boxes.Clear();
+          Debug.Log("FaceScanner: paused");
+      }
+
+      public void ResumeScan()
+      {
+          if (!_paused) return;
+          _paused   = false;
+          _nextScan = Time.time; // scan on next Update tick
+          // Redraw last known faces immediately so there's no blank moment.
+          if (_lastFaces != null && _lastFaces.Length > 0)
+              RenderOverlays(_lastFaces);
+          Debug.Log("FaceScanner: resumed");
+      }
+
       public void AddFriend(int unknownIndex, string name, string group)                                                                                           
       {           
           StartCoroutine(AddFriendCoroutine(unknownIndex, name, group));
