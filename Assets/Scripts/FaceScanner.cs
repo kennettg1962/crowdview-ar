@@ -49,15 +49,30 @@
       void Update()
       {
           if (!_paused && !_scanning && Time.time >= _nextScan)
-              StartCoroutine(ScanFrame());
+              StartCoroutine(IdentifyFrame(pauseAfter: false));
       }
 
-      public void TriggerScan() => StartCoroutine(ScanFrame());
+      /// <summary>Single scan — fires once then continues the timed interval.</summary>
+      public void TriggerScan() => StartCoroutine(IdentifyFrame(pauseAfter: false));
 
-      IEnumerator ScanFrame()
+      /// <summary>
+      /// Snap — captures the current frame, identifies faces, then auto-pauses.
+      /// The overlay holds still so the user can step through faces and add/update
+      /// without the display refreshing. Say "resume" to restart live scanning.
+      /// </summary>
+      public void TriggerSnap() => StartCoroutine(IdentifyFrame(pauseAfter: true));
+
+      IEnumerator IdentifyFrame(bool pauseAfter)
       {
+          if (_scanning) yield break;   // don't stack concurrent requests
           _scanning = true;
-          _nextScan = Time.time + scanInterval;
+
+          // Snap: freeze the interval immediately so Update doesn't fire another
+          // scan while the API call is in flight.
+          if (pauseAfter)
+              _nextScan = float.MaxValue;
+          else
+              _nextScan = Time.time + scanInterval;
 
           if (!cameraManager.TryAcquireLatestCpuImage(out XRCpuImage cpuImage))
           {
@@ -87,9 +102,9 @@
           rawData.Dispose();
 
           byte[] jpeg = tex.EncodeToJPG(75);
-          if (_lastTexture != null) Destroy(_lastTexture);                                                                                                         
-          _lastTexture = tex;                     
-          // don't Destroy(tex) here — we keep it for face cropping                                                                                                
+          if (_lastTexture != null) Destroy(_lastTexture);
+          _lastTexture = tex;
+          // don't Destroy(tex) here — we keep it for face cropping
 
           string b64 = "data:image/jpeg;base64," + Convert.ToBase64String(jpeg);
 
@@ -106,14 +121,23 @@
 
           if (req.result == UnityWebRequest.Result.Success)
           {
-              var resp = JsonUtility.FromJson<FaceResponse>(req.downloadHandler.text);
+              var resp   = JsonUtility.FromJson<FaceResponse>(req.downloadHandler.text);
               _lastFaces     = resp?.faces;
-              _selectedIndex = -1;   // reset selection on each fresh scan
-              RenderOverlays(_lastFaces);                                                                                                                          
-          }                              
+              _selectedIndex = -1;
+              RenderOverlays(_lastFaces);
+
+              // Snap: pause after rendering so the still holds on screen.
+              if (pauseAfter)
+              {
+                  _paused = true;
+                  Debug.Log("FaceScanner: snap complete — paused");
+              }
+          }
           else
           {
               Debug.LogWarning("FaceScanner: " + req.error);
+              // If snap failed, don't leave things paused.
+              if (pauseAfter) _nextScan = Time.time + scanInterval;
           }
 
           _scanning = false;

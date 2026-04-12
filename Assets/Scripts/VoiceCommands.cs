@@ -119,10 +119,19 @@
                   
           // ── Single-shot commands ──────────────────────────────────────────
 
-          // "scan"
+          // "scan" — one-shot capture, scanning continues afterwards
           if (text.Contains("scan"))
           {
               faceScanner.TriggerScan();
+              return;
+          }
+
+          // "snap" — captures a still, identifies faces, then auto-pauses
+          // so the overlay holds for review. Say "resume" to restart scanning.
+          if (text.Contains("snap"))
+          {
+              Speak("Snap.");
+              faceScanner.TriggerSnap();
               return;
           }
 
