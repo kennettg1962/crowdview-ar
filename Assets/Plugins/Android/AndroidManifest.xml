@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Custom manifest merged by Unity at build time.
+    Adds:
+      - INTERNET + RECORD_AUDIO permissions
+      - inmocrowdview://auth  deep-link intent filter
+    Everything else (CAMERA, ARCore meta-data, splash, etc.) comes
+    from Unity's generated unityLibrary manifest and is merged automatically.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <application>
+        <activity
+            android:name="com.unity3d.player.UnityPlayerActivity"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <!-- Standard launcher entry point -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Deep-link from CrowdView phone app → Unity AR app.
+                URL format:  inmocrowdview://auth?token=<JWT>
+                Application.deepLinkActivated fires when the OS routes this URL
+                to the running activity (or Application.absoluteURL on cold start).
+            -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="inmocrowdview" android:host="auth" />
+            </intent-filter>
+
+        </activity>
+    </application>
+
+</manifest>

@@ -9,7 +9,10 @@
       public FaceScanner faceScanner;
                                                                                                                                                                    
       [Header("Settings")]
-      public float listenCooldown = 1f;                                                                                                                            
+      public float listenCooldown = 1f;
+
+      [Header("Mode (set by DeepLinkHandler)")]
+      public bool isCorporate = false;   // adjusts voice prompts: "customer" vs "contact"                                                                                                                            
                   
       private AndroidJavaObject _speechRecognizer;                                                                                                                 
       private AndroidJavaObject _recognizerIntent;
@@ -83,26 +86,28 @@
       void ParseCommand(string text)
       {
           // ── Multi-turn add flow ───────────────────────────────────────────
-          if (_addStep == AddStep.WaitingName)                                                                                                                     
+          if (_addStep == AddStep.WaitingName)
           {
-              _pendingName = Capitalise(text);                                                                                                                     
-              _addStep = AddStep.WaitingGroup;                                                                                                                     
-              Speak("What group?");
-              return;                                                                                                                                              
-          }       
-          if (_addStep == AddStep.WaitingGroup)                                                                                                                    
-          {       
+              _pendingName = Capitalise(text);
+              _addStep = AddStep.WaitingGroup;
+              Speak(isCorporate ? "What department?" : "What group?");
+              return;
+          }
+          if (_addStep == AddStep.WaitingGroup)
+          {
               _pendingGroup = Capitalise(text);
               _addStep = AddStep.WaitingConfirm;
-              Speak($"Save {_pendingName} to {_pendingGroup}?");                                                                                                   
+              Speak($"Save {_pendingName} to {_pendingGroup}?");
               return;
           }                                                                                                                                                        
           if (_addStep == AddStep.WaitingConfirm)                                                                                                                  
           {
-              if (text.Contains("save") || text.Contains("yes") || text.Contains("confirm"))                                                                       
-              {                                                                                                                                                    
+              if (text.Contains("save") || text.Contains("yes") || text.Contains("confirm"))
+              {
                   faceScanner.AddFriend(_pendingUnknownIndex, _pendingName, _pendingGroup);
-                  ResetAddFlow();                                                                                                                                  
+                  string saved = isCorporate ? $"Customer {_pendingName} saved." : $"{_pendingName} saved.";
+                  ResetAddFlow();
+                  Speak(saved);
               }                                                                                                                                                    
               else if (text.Contains("cancel") || text.Contains("no"))
               {                                                                                                                                                    
@@ -133,10 +138,10 @@
                   faceScanner.AddFriend(idx, name, group);                                                                                                         
                   return;                                                                                                                                          
               }
-              // Start multi-turn flow                                                                                                                             
+              // Start multi-turn flow
               _pendingUnknownIndex = ParseUnknownIndex(text);
-              _addStep = AddStep.WaitingName;                                                                                                                      
-              Speak("What's their name?");
+              _addStep = AddStep.WaitingName;
+              Speak(isCorporate ? "What's the customer's name?" : "What's their name?");
               return;                                                                                                                                              
           }                                                                                                                                                        
    

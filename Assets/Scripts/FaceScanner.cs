@@ -33,6 +33,10 @@
       [Header("Scan Settings")]
       public float scanInterval = 2.5f;
 
+      [Header("Mode (set by DeepLinkHandler)")]
+      public bool isCorporate    = false;   // true when JWT contains parentOrganizationId
+      public int  organizationId = 0;
+
       readonly List<GameObject> _boxes = new();
       bool _scanning;
       float _nextScan;
