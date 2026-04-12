@@ -38,9 +38,10 @@
       public int  organizationId = 0;
 
       readonly List<GameObject> _boxes = new();
-      bool _scanning;
-      bool _paused;
+      bool  _scanning;
+      bool  _paused;
       float _nextScan;
+      int   _selectedIndex = -1;   // -1 = no selection; cycles via NextFace/PrevFace
 
       FaceData[] _lastFaces;
       Texture2D  _lastTexture;
@@ -104,9 +105,10 @@
           yield return req.SendWebRequest();
 
           if (req.result == UnityWebRequest.Result.Success)
-          {                                        
-              var resp = JsonUtility.FromJson<FaceResponse>(req.downloadHandler.text);                                                                             
-              _lastFaces = resp?.faces;                                               
+          {
+              var resp = JsonUtility.FromJson<FaceResponse>(req.downloadHandler.text);
+              _lastFaces     = resp?.faces;
+              _selectedIndex = -1;   // reset selection on each fresh scan
               RenderOverlays(_lastFaces);                                                                                                                          
           }                              
           else
@@ -128,41 +130,45 @@
           float ch = overlayRect.rect.height;
           int unk = 0;
 
-          foreach (var face in faces)
+          for (int i = 0; i < faces.Length; i++)
           {
-              var bb = face.boundingBox;
+              var face = faces[i];
+              var bb   = face.boundingBox;
+              bool selected = (i == _selectedIndex);
               Color col = StatusColor(face);
 
-              // Box
+              // Selected face: thicker outline + semi-transparent fill tint
               var boxGO = new GameObject("FaceBox");
               boxGO.transform.SetParent(overlayRect, false);
               var img = boxGO.AddComponent<Image>();
-              img.color = new Color(0, 0, 0, 0);
+              img.color = selected ? new Color(col.r, col.g, col.b, 0.15f) : new Color(0, 0, 0, 0);
               img.raycastTarget = false;
               var outline = boxGO.AddComponent<Outline>();
-              outline.effectColor = col;
-              outline.effectDistance = new Vector2(3, 3);
+              outline.effectColor    = col;
+              outline.effectDistance = selected ? new Vector2(6, 6) : new Vector2(3, 3);
               var rt = boxGO.GetComponent<RectTransform>();
               rt.anchorMin = rt.anchorMax = rt.pivot = Vector2.zero;
               rt.anchoredPosition = new Vector2(bb.left * cw, (1f - bb.top - bb.height) * ch);
               rt.sizeDelta = new Vector2(bb.width * cw, bb.height * ch);
 
-              // Label
+              // Label — larger and bold when selected
               string label = string.IsNullOrEmpty(face.friendName)
                   ? "Unknown " + (++unk) : face.friendName;
               var labelGO = new GameObject("Label");
               labelGO.transform.SetParent(boxGO.transform, false);
               var tmp = labelGO.AddComponent<TextMeshProUGUI>();
-              tmp.text = label; tmp.fontSize = 14;
-              tmp.color = Color.white;
+              tmp.text      = selected ? $"▶ {label}" : label;
+              tmp.fontSize  = selected ? 17 : 14;
+              tmp.fontStyle = selected ? FontStyles.Bold : FontStyles.Normal;
+              tmp.color     = Color.white;
               tmp.alignment = TextAlignmentOptions.Center;
               tmp.raycastTarget = false;
               var labelRt = labelGO.GetComponent<RectTransform>();
-              labelRt.anchorMin = new Vector2(0, 0);
-              labelRt.anchorMax = new Vector2(1, 0);
-              labelRt.pivot = new Vector2(0.5f, 0);
+              labelRt.anchorMin       = new Vector2(0, 0);
+              labelRt.anchorMax       = new Vector2(1, 0);
+              labelRt.pivot           = new Vector2(0.5f, 0);
               labelRt.anchoredPosition = Vector2.zero;
-              labelRt.sizeDelta = new Vector2(0, 20);
+              labelRt.sizeDelta       = new Vector2(0, 22);
 
               _boxes.Add(boxGO);
           }
@@ -218,6 +224,55 @@
           if (_lastFaces != null && _lastFaces.Length > 0)
               RenderOverlays(_lastFaces);
           Debug.Log("FaceScanner: resumed");
+      }
+
+      /// <summary>
+      /// Advance selection to the next face. Returns a TTS-ready description,
+      /// or null if there are no faces to cycle through.
+      /// </summary>
+      public string NextFace()
+      {
+          if (_lastFaces == null || _lastFaces.Length == 0) return null;
+          _selectedIndex = (_selectedIndex + 1) % _lastFaces.Length;
+          RenderOverlays(_lastFaces);
+          return FaceDescription(_lastFaces[_selectedIndex]);
+      }
+
+      /// <summary>Step selection back to the previous face.</summary>
+      public string PrevFace()
+      {
+          if (_lastFaces == null || _lastFaces.Length == 0) return null;
+          _selectedIndex = (_selectedIndex - 1 + _lastFaces.Length) % _lastFaces.Length;
+          RenderOverlays(_lastFaces);
+          return FaceDescription(_lastFaces[_selectedIndex]);
+      }
+
+      /// <summary>Returns the currently selected face, or null if none selected.</summary>
+      public FaceData GetSelectedFace() =>
+          (_selectedIndex >= 0 && _lastFaces != null && _selectedIndex < _lastFaces.Length)
+              ? _lastFaces[_selectedIndex] : null;
+
+      /// <summary>Returns the raw selected index (-1 if none).</summary>
+      public int GetSelectedIndex() => _selectedIndex;
+
+      /// <summary>Clears face selection without affecting scanning.</summary>
+      public void ClearSelection()
+      {
+          _selectedIndex = -1;
+          if (_lastFaces != null) RenderOverlays(_lastFaces);
+      }
+
+      static string FaceDescription(FaceData face)
+      {
+          string name = string.IsNullOrEmpty(face.friendName) ? "Unknown" : face.friendName;
+          string status = face.status switch
+          {
+              "known"      => "friend",
+              "identified" => "identified contact",
+              "employee"   => "employee",
+              _            => "unknown",
+          };
+          return $"{name}, {status}";
       }
 
       public void AddFriend(int unknownIndex, string name, string group)                                                                                           

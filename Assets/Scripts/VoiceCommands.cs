@@ -117,32 +117,69 @@
               return;
           }                                                                                                                                                        
                   
-          // ── Single-shot commands ──────────────────────────────────────────                                                                                    
-   
-          // "scan"                                                                                                                                                
+          // ── Single-shot commands ──────────────────────────────────────────
+
+          // "scan"
           if (text.Contains("scan"))
           {
               faceScanner.TriggerScan();
               return;
-          }                                                                                                                                                        
-   
-          // "add unknown N, name, group, save"                                                                                                                    
+          }
+
+          // "next" — advance to next detected face
+          if (text == "next")
+          {
+              string desc = faceScanner.NextFace();
+              Speak(desc ?? "No faces detected.");
+              return;
+          }
+
+          // "previous" / "prev" — step back to previous face
+          if (text == "previous" || text == "prev")
+          {
+              string desc = faceScanner.PrevFace();
+              Speak(desc ?? "No faces detected.");
+              return;
+          }
+
+          // "clear" — deselect current face
+          if (text == "clear")
+          {
+              faceScanner.ClearSelection();
+              Speak("Selection cleared.");
+              return;
+          }
+
+          // "add" with a selected face — skip "unknown N" phrasing
+          if (text.Trim() == "add")
+          {
+              var selected = faceScanner.GetSelectedFace();
+              if (selected != null && string.IsNullOrEmpty(selected.friendName))
+              {
+                  _pendingUnknownIndex = faceScanner.GetSelectedIndex();
+                  _addStep = AddStep.WaitingName;
+                  Speak(isCorporate ? "What's the customer's name?" : "What's their name?");
+                  return;
+              }
+          }
+
+          // "add unknown N, name, group, save"
           if (text.StartsWith("add unknown"))
-          {                                                                                                                                                        
+          {
               var parts = text.Split(',');
-              if (parts.Length >= 4 && parts[3].Trim().Contains("save"))                                                                                           
-              {                                                                                                                                                    
+              if (parts.Length >= 4 && parts[3].Trim().Contains("save"))
+              {
                   int idx = ParseUnknownIndex(parts[0]);
-                  string name  = Capitalise(parts[1].Trim());                                                                                                      
+                  string name  = Capitalise(parts[1].Trim());
                   string group = Capitalise(parts[2].Trim());
-                  faceScanner.AddFriend(idx, name, group);                                                                                                         
-                  return;                                                                                                                                          
+                  faceScanner.AddFriend(idx, name, group);
+                  return;
               }
               // Start multi-turn flow
               _pendingUnknownIndex = ParseUnknownIndex(text);
               _addStep = AddStep.WaitingName;
               Speak(isCorporate ? "What's the customer's name?" : "What's their name?");
-              return;                                                                                                                                              
+              return;
           }                                                                                                                                                        
    
           // "update name, group, save"                                                                                                                            
