@@ -15,8 +15,9 @@ using UnityEngine;
 public class DeepLinkHandler : MonoBehaviour
 {
     [Header("References")]
-    public FaceScanner  faceScanner;
-    public VoiceCommands voiceCommands;
+    public FaceScanner     faceScanner;
+    public VoiceCommands   voiceCommands;
+    public GlassesStreamer glassesStreamer;
 
     void Awake()
     {
@@ -49,9 +50,11 @@ public class DeepLinkHandler : MonoBehaviour
             return;
         }
 
-        // Push token to FaceScanner.
+        // Push token to FaceScanner and GlassesStreamer.
         if (faceScanner != null)
             faceScanner.authToken = token;
+        if (glassesStreamer != null)
+            glassesStreamer.authToken = token;
 
         // Decode JWT payload to detect corporate mode.
         bool corporate = IsCorporateToken(token);

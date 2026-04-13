@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.unity.webrtc": "3.0.0-pre.6",
     "com.unity.collab-proxy": "2.12.4",
     "com.unity.ide.rider": "3.0.36",
     "com.unity.ide.visualstudio": "2.0.22",

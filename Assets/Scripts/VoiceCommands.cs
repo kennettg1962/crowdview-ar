@@ -6,7 +6,8 @@
   public class VoiceCommands : MonoBehaviour                                                                                                                       
   {               
       [Header("References")]
-      public FaceScanner faceScanner;
+      public FaceScanner     faceScanner;
+      public GlassesStreamer glassesStreamer;
                                                                                                                                                                    
       [Header("Settings")]
       public float listenCooldown = 1f;
@@ -220,7 +221,29 @@
               return;
           }
 
-          // "stop"
+          // "stream" / "start stream" — begin streaming to Live Now
+          if (text == "stream" || text.Contains("start stream"))
+          {
+              if (glassesStreamer != null)
+              {
+                  glassesStreamer.StartStream();
+                  Speak("Starting stream.");
+              }
+              return;
+          }
+
+          // "stop stream" / "stop streaming" — end stream only (must be before bare "stop")
+          if (text.Contains("stop stream"))
+          {
+              if (glassesStreamer != null)
+              {
+                  glassesStreamer.StopStream();
+                  Speak("Stream stopped.");
+              }
+              return;
+          }
+
+          // "stop" — stop face scanning
           if (text.Contains("stop"))
           {
               faceScanner.StopScan();
